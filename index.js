@@ -16,6 +16,7 @@ class Todo {
   }
 }
 
+let idCounter = 1;
 const todos = [];
 
 const schema = buildSchema(`
@@ -39,23 +40,24 @@ const schema = buildSchema(`
       description: String,
       isCompleted: Boolean
     ): Todo
-    deleteTodoById(id: ID!): Todo
+    deleteTodo(id: ID!): Todo
   }
 `);
 
-const root = {
+const rootValue = {
   getTodos: () => todos,
 
   getTodoById: ({ id }) => todos.find((todo) => todo.id === id),
 
   createTodo: ({ title, description, isCompleted }) => {
     const newTodo = new Todo(
-      `todo_${todos.length + 1}`,
+      idCounter.toString(),
       title,
       description,
       isCompleted,
     );
 
+    idCounter++;
     todos.push(newTodo);
 
     return newTodo;
@@ -65,25 +67,26 @@ const root = {
     const todo = todos.find((todo) => todo.id === id);
 
     if (!todo) {
-      throw new Error('Todo not found');
+      throw new Error(`Todo with id ${id} not found`);
     }
 
-    if (title !== undefined) todo.title = title;
-    if (description !== undefined) todo.description = description;
-    if (isCompleted !== undefined) todo.isCompleted = isCompleted;
+    todo.title = title || todo.title;
+    todo.description = description || todo.description;
+    todo.isCompleted = isCompleted ?? todo.isCompleted;
 
     return todo;
   },
 
-  deleteTodoById: ({ id }) => {
+  deleteTodo: ({ id }) => {
     const index = todos.findIndex((todo) => todo.id === id);
 
     if (index === -1) {
-      throw new Error('Todo not found');
+      throw new Error(`Todo with id ${id} not found`);
     }
 
-    const removed = todos.splice(index, 1);
-    return removed[0];
+    const deletedTodo = todos.splice(index, 1);
+
+    return deletedTodo[0];
   },
 };
 
@@ -91,14 +94,11 @@ router.all(
   '/graphql',
   graphqlHTTP({
     schema,
-    rootValue: root,
+    rootValue,
     graphiql: true,
   }),
 );
 
 app.use(bodyParser()).use(router.routes()).use(router.allowedMethods());
 
-const PORT = 4000;
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}/graphql`);
-});
+app.listen(4000);
